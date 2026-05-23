@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
-
 import numpy as np
 import time
 import RPi.GPIO as GPIO
-
 import board
 import busio
 import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
-
 from RPLCD.i2c import CharLCD
-
 
 # =========================
 # HARDWARE SETUP
 # =========================
-
 # GPIO
 TRIP_PIN = 17
 GPIO.setmode(GPIO.BCM)
@@ -28,7 +23,6 @@ i2c = busio.I2C(board.SCL, board.SDA)
 ads = ADS.ADS1115(i2c)
 ads.gain = 1          # ±4.096V range (good for sensors)
 ads.data_rate = 475   # max stable rate
-
 CH_CURRENT = AnalogIn(ads, ADS.P0)
 CH_VOLTAGE = AnalogIn(ads, ADS.P1)
 
@@ -41,143 +35,215 @@ lcd = CharLCD(
     rows=4,
     auto_linebreaks=False
 )
-
 lcd.clear()
-
 
 # =========================
 # CONFIGURATION
 # =========================
-
 SYSTEM_FREQUENCY = 50
-SAMPLES_PER_CYCLE = 10   # adjusted for ADS1115 reality
-
+SAMPLES_PER_CYCLE = 20         # FIX: increased from 10 for better FFT
 SETTING_CURRENT_RMS = 1.0
 TMS = 0.3
+RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
 RELAY_MODE = "IDMT"
-
 FORWARD_HALF_ANGLE = 90
 
+# =========================
+# VIRTUAL DISC (for IDMT)
+# =========================
+class VirtualDisc:
+    """Virtual disc for IDMT timing"""
+    def __init__(self):
+        self.position = 0.0
+        self.HALF_CYCLE_DURATION = 1.0 / (2 * SYSTEM_FREQUENCY)
+    
+    def reset(self):
+        self.position = 0.0
+    
+    def idmt_trip_time(self, i_rms: float) -> float:
+        """Standard Inverse trip time"""
+        ratio = i_rms / SETTING_CURRENT_RMS
+        if ratio <= 1.0:
+            return float("inf")
+        return (TMS * 0.14) / (ratio ** 0.02 - 1)
+    
+    def advance(self, i_rms: float) -> bool:
+        """Advance disc by one cycle, return True when ready to trip"""
+        t_trip = self.idmt_trip_time(i_rms)
+        if t_trip == float("inf"):
+            self.position = max(0.0, self.position - 5.0)
+            return False
+        
+        interval = 1.0 / (SYSTEM_FREQUENCY * SAMPLES_PER_CYCLE)
+        increment = (interval / t_trip) * 100.0
+        self.position = min(100.0, self.position + increment)
+        return self.position >= 100.0
+
+disc = VirtualDisc()
 
 # =========================
 # ADC READING
 # =========================
-
 def read_voltage(channel: AnalogIn):
     # ADS1115 already returns voltage correctly scaled
     return channel.voltage
 
-
 # =========================
-# SAMPLING
+# SAMPLING (FIXED for better timing)
 # =========================
-
 def sample_cycle():
     i_samples = []
     v_samples = []
-
     interval = 1.0 / (SYSTEM_FREQUENCY * SAMPLES_PER_CYCLE)
-
+    next_time = time.perf_counter()  # FIX: use perf_counter instead of sleep
+    
     for _ in range(SAMPLES_PER_CYCLE):
         i_samples.append(read_voltage(CH_CURRENT))
         v_samples.append(read_voltage(CH_VOLTAGE))
-        time.sleep(interval)
-
+        
+        next_time += interval
+        while time.perf_counter() < next_time:  # FIX: accurate timing
+            pass
+    
     return np.array(i_samples), np.array(v_samples)
-
 
 # =========================
 # FFT (stable version)
 # =========================
-
 def fft_rms(x):
+    if len(x) == 0:
+        return 0.0
     x = x * np.hanning(len(x))
     X = np.fft.fft(x)
-    mag = np.abs(X[1]) * 2 / len(x)
+    mag = (2.0 / len(x)) * abs(X[1])
     return mag / np.sqrt(2)
 
-
 def fft_phase(x):
+    if len(x) == 0:
+        return 0.0
     X = np.fft.fft(x * np.hanning(len(x)))
-    return np.angle(X[1], deg=True)
-
+    return np.degrees(np.angle(X[1]))
 
 # =========================
-# LCD FUNCTION
+# LCD FUNCTION (FIXED)
 # =========================
-
 def lcd_print(l1="", l2="", l3="", l4=""):
+    """FIX: Corrected cursor_pos to use (row, col) format"""
     def f(x): return str(x)[:16].ljust(16)
-
-    lcd.cursor_pos = (0, 0); lcd.write_string(f(l1))
-    lcd.cursor_pos = (0, 1); lcd.write_string(f(l2))
-    lcd.cursor_pos = (0, 2); lcd.write_string(f(l3))
-    lcd.cursor_pos = (0, 3); lcd.write_string(f(l4))
-
+    
+    lcd.cursor_pos = (0, 0)  # Row 0, Col 0 - FIX
+    lcd.write_string(f(l1))
+    
+    lcd.cursor_pos = (1, 0)  # Row 1, Col 0 - FIX
+    lcd.write_string(f(l2))
+    
+    lcd.cursor_pos = (2, 0)  # Row 2, Col 0 - FIX
+    lcd.write_string(f(l3))
+    
+    lcd.cursor_pos = (3, 0)  # Row 3, Col 0 - FIX
+    lcd.write_string(f(l4))
 
 # =========================
 # FAULT DIRECTION
 # =========================
-
-def is_forward(i, v):
-    phase_diff = fft_phase(i) - fft_phase(v)
+def is_forward(i, v, pre_fault_v_angle=None):
+    """Determine if fault is forward direction"""
+    v_rms = fft_rms(v)
+    
+    # FIX: Handle voltage collapse
+    if v_rms < 0.05 and pre_fault_v_angle is not None:
+        v_phase = pre_fault_v_angle
+    else:
+        v_phase = fft_phase(v)
+    
+    i_phase = fft_phase(i)
+    
+    # Phase difference
+    phase_diff = i_phase - v_phase
     phase_diff = (phase_diff + 180) % 360 - 180
-    return abs(phase_diff) <= FORWARD_HALF_ANGLE
-
+    
+    # Adjust by RCA
+    adjusted = phase_diff - RELAY_CHAR_ANGLE
+    adjusted = (adjusted + 180) % 360 - 180
+    
+    forward = abs(adjusted) <= FORWARD_HALF_ANGLE
+    return forward
 
 # =========================
 # TRIP
 # =========================
-
 def trip():
     GPIO.output(TRIP_PIN, GPIO.HIGH)
     time.sleep(0.1)
     GPIO.output(TRIP_PIN, GPIO.LOW)
 
-
 # =========================
 # MAIN LOOP
 # =========================
-
 def run():
     last_update = 0
     LCD_RATE = 0.2
-
+    pre_fault_v_angle = None  # FIX: store reference voltage angle
+    
     lcd_print("Relay READY", "ADS1115 ACTIVE", "", "")
-
+    
     while True:
         i, v = sample_cycle()
         i_rms = fft_rms(i)
-
+        v_rms = fft_rms(v)
         fault = i_rms > SETTING_CURRENT_RMS
-
+        
         if time.time() - last_update > LCD_RATE:
             if fault:
-                lcd_print(
-                    "FAULT DETECTED",
-                    f"I={i_rms:.2f}A",
-                    f"Mode={RELAY_MODE}",
-                    "Analyzing..."
-                )
+                # FIX: Show all 4 lines with more info
+                if RELAY_MODE == "INSTANTANEOUS":
+                    lcd_print(
+                        "FAULT DETECTED",
+                        f"I={i_rms:.2f}A V={v_rms:.1f}V",
+                        f"Mode={RELAY_MODE}",
+                        "Checking dir..."
+                    )
+                else:  # IDMT
+                    lcd_print(
+                        f"IDMT {disc.position:.0f}%",
+                        f"I={i_rms:.2f}A V={v_rms:.1f}V",
+                        f"t={disc.idmt_trip_time(i_rms):.2f}s",
+                        "Accumulating..."
+                    )
             else:
                 lcd_print(
                     "NORMAL",
-                    f"I={i_rms:.2f}A",
+                    f"I={i_rms:.2f}A V={v_rms:.1f}V",
                     "Monitoring",
                     ""
                 )
             last_update = time.time()
-
-        if fault and is_forward(i, v):
-            lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
-            trip()
-            time.sleep(1)
-
+        
+        if fault:
+            # FIX: Implement IDMT mode properly
+            if RELAY_MODE == "INSTANTANEOUS":
+                if is_forward(i, v, pre_fault_v_angle):
+                    lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
+                    trip()
+                    time.sleep(1)
+            else:  # IDMT mode
+                if disc.advance(i_rms):  # Disc reached 100%
+                    if is_forward(i, v, pre_fault_v_angle):
+                        lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
+                        trip()
+                        disc.reset()
+                        time.sleep(1)
+                    else:
+                        # FIX: Reset disc on reverse fault
+                        disc.reset()
+        else:
+            # Below pickup: store pre-fault angle and reset disc
+            pre_fault_v_angle = fft_phase(v)
+            disc.reset()
 
 # =========================
 # ENTRY
 # =========================
-
 if __name__ == "__main__":
     try:
         run()
