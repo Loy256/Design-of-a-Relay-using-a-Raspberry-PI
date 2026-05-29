@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import time
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 import board
 import busio
 import adafruit_ads1x15.ads1115 as ADS
@@ -12,17 +12,16 @@ from RPLCD.i2c import CharLCD
 # HARDWARE SETUP
 # =========================
 # GPIO
-TRIP_PIN = 17
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(TRIP_PIN, GPIO.OUT, initial=GPIO.LOW)
+from gpiozero import OutputDevice
 
+TRIP_PIN = OutputDevice(17, active_high=True, initial_value=False)
 # I2C bus
 i2c = busio.I2C(board.SCL, board.SDA)
 
 # ADS1115 ADC
 ads = ADS.ADS1115(i2c)
 ads.gain = 1          # ±4.096V range (good for sensors)
-ads.data_rate = 475   # max stable rate
+ads.data_rate = 860   # max stable rate
 CH_CURRENT = AnalogIn(ads, ADS.P0)
 CH_VOLTAGE = AnalogIn(ads, ADS.P1)
 
@@ -41,7 +40,7 @@ lcd.clear()
 # CONFIGURATION
 # =========================
 SYSTEM_FREQUENCY = 50
-SAMPLES_PER_CYCLE = 20         # FIX: increased from 10 for better FFT
+SAMPLES_PER_CYCLE = 16         # FIX: increased from 10 for better FFT
 SETTING_CURRENT_RMS = 1.0
 TMS = 0.3
 RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
@@ -113,15 +112,24 @@ def sample_cycle():
 def fft_rms(x):
     if len(x) == 0:
         return 0.0
+
+    x = x - np.mean(x)      # Remove DC offset
     x = x * np.hanning(len(x))
+
     X = np.fft.fft(x)
     mag = (2.0 / len(x)) * abs(X[1])
+
     return mag / np.sqrt(2)
 
 def fft_phase(x):
     if len(x) == 0:
         return 0.0
-    X = np.fft.fft(x * np.hanning(len(x)))
+
+    x = x - np.mean(x)      # Remove DC offset
+    x = x * np.hanning(len(x))
+
+    X = np.fft.fft(x)
+
     return np.degrees(np.angle(X[1]))
 
 # =========================
@@ -173,9 +181,9 @@ def is_forward(i, v, pre_fault_v_angle=None):
 # TRIP
 # =========================
 def trip():
-    GPIO.output(TRIP_PIN, GPIO.HIGH)
+    TRIP_PIN.on()
     time.sleep(0.1)
-    GPIO.output(TRIP_PIN, GPIO.LOW)
+    TRIP_PIN.off()
 
 # =========================
 # MAIN LOOP
@@ -248,4 +256,5 @@ if __name__ == "__main__":
     try:
         run()
     except KeyboardInterrupt:
-        GPIO.cleanup()
+        pass
+    #TRIP_PIN.close()
