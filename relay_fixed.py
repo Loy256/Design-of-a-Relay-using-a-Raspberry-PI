@@ -60,10 +60,16 @@ print(f"Detected I2C devices: {detected_devices}")
 lcd = None
 lcd_address = None
 
-# Try common LCD expander addresses
+# First try common LCD expander addresses
 common_addresses = [0x27, 0x3F, 0x20, 0x21]
 
-for addr in common_addresses:
+# Then try all detected addresses that aren't the ADS1115 (0x48)
+addresses_to_try = common_addresses + [addr for addr in detected_devices if addr != '0x48']
+addresses_to_try = list(dict.fromkeys([int(addr, 16) for addr in addresses_to_try]))  # Remove duplicates and convert to int
+
+print(f"\nTrying to initialize LCD at detected addresses: {[hex(a) for a in addresses_to_try]}")
+
+for addr in addresses_to_try:
     try:
         print(f"Attempting to initialize LCD at address {hex(addr)}...")
         lcd = CharLCD(
@@ -76,15 +82,21 @@ for addr in common_addresses:
         )
         lcd.clear()
         lcd_address = addr
-        print(f"Successfully initialized LCD at address {hex(addr)}")
+        print(f"✓ Successfully initialized LCD at address {hex(addr)}")
         break
     except (OSError, IOError) as e:
-        print(f"LCD not found at address {hex(addr)}: {e}")
+        print(f"  LCD not found at {hex(addr)}")
         lcd = None
 
 if lcd is None:
-    print("Warning: LCD could not be initialized at any common address")
+    print("\n⚠ Warning: LCD could not be initialized at any address")
+    print("Your LCD may not be connected or powered on.")
     print("Continuing without LCD display...")
+    print("Expected values on LCD:")
+    print("  - Line 1: 'Relay READY' or 'FAULT DETECTED' or 'NORMAL' or 'TRIP'")
+    print("  - Line 2: Current (I) and Voltage (V) readings")
+    print("  - Line 3: Mode info or 'Monitoring'")
+    print("  - Line 4: Status info")
 
 # =========================
 # CONFIGURATION
