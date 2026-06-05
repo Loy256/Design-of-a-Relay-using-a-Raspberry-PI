@@ -31,8 +31,8 @@ ads.gain = 1
 # More stable than 860 SPS
 ads.data_rate = 475
 
-CH_CURRENT = AnalogIn(ads, ADS.P0)
-CH_VOLTAGE = AnalogIn(ads, ADS.P1)
+CH_CURRENT = AnalogIn(ads, 0)
+CH_VOLTAGE = AnalogIn(ads, 1)
 
 # =========================
 # LCD 16x4
