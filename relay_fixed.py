@@ -35,17 +35,56 @@ CH_CURRENT = AnalogIn(ads, 0)
 CH_VOLTAGE = AnalogIn(ads, 1)
 
 # =========================
-# LCD 16x4
+# I2C DEVICE SCANNING
 # =========================
-lcd = CharLCD(
-    i2c_expander='PCF8574',
-    address=0x3F,
-    port=1,
-    cols=16,
-    rows=4,
-    auto_linebreaks=False
-)
-lcd.clear()
+def scan_i2c_devices(i2c_bus):
+    """Scan I2C bus and return list of detected device addresses"""
+    devices = []
+    for address in range(0x03, 0x78):
+        try:
+            i2c_bus.writeto(address, bytes([0]))
+            devices.append(hex(address))
+            print(f"I2C device found at address: {hex(address)}")
+        except (OSError, IOError):
+            pass
+    return devices
+
+# Scan for connected devices (for debugging)
+print("Scanning I2C bus for devices...")
+detected_devices = scan_i2c_devices(i2c)
+print(f"Detected I2C devices: {detected_devices}")
+
+# =========================
+# LCD 16x4 - Auto-detect address
+# =========================
+lcd = None
+lcd_address = None
+
+# Try common LCD expander addresses
+common_addresses = [0x27, 0x3F, 0x20, 0x21]
+
+for addr in common_addresses:
+    try:
+        print(f"Attempting to initialize LCD at address {hex(addr)}...")
+        lcd = CharLCD(
+            i2c_expander='PCF8574',
+            address=addr,
+            port=1,
+            cols=16,
+            rows=4,
+            auto_linebreaks=False
+        )
+        lcd.clear()
+        lcd_address = addr
+        print(f"Successfully initialized LCD at address {hex(addr)}")
+        break
+    except (OSError, IOError) as e:
+        print(f"LCD not found at address {hex(addr)}: {e}")
+        lcd = None
+
+if lcd is None:
+    print("Warning: LCD could not be initialized at any common address")
+    print("Continuing without LCD display...")
 
 # =========================
 # CONFIGURATION
@@ -180,6 +219,11 @@ def fft_phase(x):
 # LCD FUNCTION (FIXED)
 # =========================
 def lcd_print(l1="", l2="", l3="", l4=""):
+    if lcd is None:
+        # Print to console if LCD not available
+        print(f"LCD: {l1} | {l2} | {l3} | {l4}")
+        return
+    
     lcd.clear()
 
     lcd.cursor_pos = (0, 0)
