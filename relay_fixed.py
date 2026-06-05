@@ -7,14 +7,62 @@ import busio
 import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 from RPLCD.i2c import CharLCD
+import signal
+import sys
 
+# =========================
+# HARDWARE SETUP
+# =========================
 # =========================
 # HARDWARE SETUP
 # =========================
 # GPIO
 from gpiozero import OutputDevice
+import lgpio
 
-TRIP_PIN = OutputDevice(17, active_high=True, initial_value=False)
+TRIP_PIN = None
+
+def init_gpio():
+    """Initialize GPIO with error handling"""
+    global TRIP_PIN
+    try:
+        TRIP_PIN = OutputDevice(17, active_high=True, initial_value=False)
+        print("✓ GPIO17 initialized successfully")
+        return True
+    except Exception as e:
+        print(f"⚠ Warning: GPIO17 initialization failed: {e}")
+        print("  Attempting to reset GPIO...")
+        try:
+            # Try to reset the GPIO
+            import os
+            os.system("gpio -g mode 17 in")
+            os.system("gpio -g mode 17 out")
+            time.sleep(0.5)
+            TRIP_PIN = OutputDevice(17, active_high=True, initial_value=False)
+            print("✓ GPIO17 reset and initialized successfully")
+            return True
+        except Exception as e2:
+            print(f"✗ GPIO17 initialization still failed: {e2}")
+            print("  Relay will work but trip command will be disabled")
+            return False
+
+# Graceful shutdown handler
+def cleanup(signum=None, frame=None):
+    """Clean up resources on exit"""
+    print("\n\nShutting down...")
+    if TRIP_PIN is not None:
+        try:
+            TRIP_PIN.off()
+            TRIP_PIN.close()
+            print("✓ GPIO cleaned up")
+        except:
+            pass
+    sys.exit(0)
+
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGINT, cleanup)
+signal.signal(signal.SIGTERM, cleanup)
+
 # I2C bus
 i2c = busio.I2C(board.SCL, board.SDA)
 
@@ -280,14 +328,22 @@ def is_forward(i, v, pre_fault_v_angle=None):
 # TRIP
 # =========================
 def trip():
-    TRIP_PIN.on()
-    time.sleep(0.1)
-    TRIP_PIN.off()
+    if TRIP_PIN is not None:
+        TRIP_PIN.on()
+        time.sleep(0.1)
+        TRIP_PIN.off()
+        print("⚡ RELAY TRIPPED")
+    else:
+        print("⚠ Trip signal would be sent (GPIO not available)")
 
 # =========================
 # MAIN LOOP
 # =========================
 def run():
+    # Initialize GPIO
+    print("\nInitializing GPIO for relay trip control...")
+    init_gpio()
+    
     last_update = 0
     LCD_RATE = 0.2
     pre_fault_v_angle = None  # FIX: store reference voltage angle
@@ -355,5 +411,7 @@ if __name__ == "__main__":
     try:
         run()
     except KeyboardInterrupt:
-        pass
-    #TRIP_PIN.close()
+        cleanup()
+    except Exception as e:
+        print(f"Error: {e}")
+        cleanup()
