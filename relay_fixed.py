@@ -64,8 +64,8 @@ lcd_address = None
 common_addresses = [0x27, 0x3F, 0x20, 0x21]
 
 # Then try all detected addresses that aren't the ADS1115 (0x48)
-addresses_to_try = common_addresses + [addr for addr in detected_devices if addr != '0x48']
-addresses_to_try = list(dict.fromkeys([int(addr, 16) for addr in addresses_to_try]))  # Remove duplicates and convert to int
+detected_addrs = [int(addr, 16) for addr in detected_devices if addr != '0x48']
+addresses_to_try = list(dict.fromkeys(common_addresses + detected_addrs))  # Remove duplicates
 
 print(f"\nTrying to initialize LCD at detected addresses: {[hex(a) for a in addresses_to_try]}")
 
