@@ -149,6 +149,33 @@ def fft_rms(x):
 
     return mag / np.sqrt(2)
 
+
+# =========================
+# FFT PHASE DETECTION
+# =========================
+def fft_phase(x):
+    """
+    Returns phase angle of the fundamental frequency component.
+    """
+    if len(x) == 0:
+        return 0.0
+
+    x = x - np.mean(x)
+
+    if np.max(np.abs(x)) < 0.01:
+        return 0.0
+
+    x = x * np.hanning(len(x))
+
+    X = np.fft.fft(x)
+
+    fundamental = X[1]
+
+    phase = np.angle(fundamental, deg=True)
+
+    return phase
+
+
 # =========================
 # LCD FUNCTION (FIXED)
 # =========================
