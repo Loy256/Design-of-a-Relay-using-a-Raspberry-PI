@@ -61,7 +61,7 @@ lcd = None
 lcd_address = None
 
 # First try common LCD expander addresses
-common_addresses = [0x27, 0x3F, 0x20, 0x21]
+common_addresses = [0x27, 0x3F, 0x20, 0x21,0x22, 0x23, 0x24, 0x25, 0x26, 0x38]
 
 # Then try all detected addresses that aren't the ADS1115 (0x48)
 detected_addrs = [int(addr, 16) for addr in detected_devices if addr != '0x48']
