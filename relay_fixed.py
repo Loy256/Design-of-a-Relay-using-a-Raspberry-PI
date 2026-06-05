@@ -20,15 +20,26 @@ i2c = busio.I2C(board.SCL, board.SDA)
 
 # ADS1115 ADC
 ads = ADS.ADS1115(i2c)
-ads.gain = 1          # ±4.096V range (good for sensors)
-ads.data_rate = 860   # max stable rate
+# =========================
+# ADS1115 ADC
+# =========================
+ads = ADS.ADS1115(i2c)
+
+# Gain 1 = ±4.096 V range
+ads.gain = 1
+
+# More stable than 860 SPS
+ads.data_rate = 475
+
 CH_CURRENT = AnalogIn(ads, ADS.P0)
 CH_VOLTAGE = AnalogIn(ads, ADS.P1)
 
+# =========================
 # LCD 16x4
+# =========================
 lcd = CharLCD(
     i2c_expander='PCF8574',
-    address=0x27,
+    address=0x3F,
     port=1,
     cols=16,
     rows=4,
@@ -40,7 +51,7 @@ lcd.clear()
 # CONFIGURATION
 # =========================
 SYSTEM_FREQUENCY = 50
-SAMPLES_PER_CYCLE = 16         # FIX: increased from 10 for better FFT
+SAMPLES_PER_CYCLE = 32         # FIX: increased from 10 for better FFT
 SETTING_CURRENT_RMS = 1.0
 TMS = 0.3
 RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
@@ -83,9 +94,17 @@ disc = VirtualDisc()
 # =========================
 # ADC READING
 # =========================
-def read_voltage(channel: AnalogIn):
-    # ADS1115 already returns voltage correctly scaled
-    return channel.voltage
+def read_voltage(channel):
+    v = channel.voltage
+
+    # Prevent impossible values
+    if v < 0:
+        v = 0
+
+    if v > 4.096:
+        v = 4.096
+
+    return v
 
 # =========================
 # SAMPLING (FIXED for better timing)
@@ -93,17 +112,19 @@ def read_voltage(channel: AnalogIn):
 def sample_cycle():
     i_samples = []
     v_samples = []
+
     interval = 1.0 / (SYSTEM_FREQUENCY * SAMPLES_PER_CYCLE)
-    next_time = time.perf_counter()  # FIX: use perf_counter instead of sleep
-    
+    next_time = time.perf_counter()
+
     for _ in range(SAMPLES_PER_CYCLE):
         i_samples.append(read_voltage(CH_CURRENT))
         v_samples.append(read_voltage(CH_VOLTAGE))
-        
+
         next_time += interval
-        while time.perf_counter() < next_time:  # FIX: accurate timing
-            pass
-    
+
+        while time.perf_counter() < next_time:
+            time.sleep(0.00005)
+
     return np.array(i_samples), np.array(v_samples)
 
 # =========================
@@ -113,43 +134,38 @@ def fft_rms(x):
     if len(x) == 0:
         return 0.0
 
-    x = x - np.mean(x)      # Remove DC offset
-    x = x * np.hanning(len(x))
+    x = x - np.mean(x)
 
-    X = np.fft.fft(x)
-    mag = (2.0 / len(x)) * abs(X[1])
-
-    return mag / np.sqrt(2)
-
-def fft_phase(x):
-    if len(x) == 0:
+    if np.max(np.abs(x)) < 0.01:
         return 0.0
 
-    x = x - np.mean(x)      # Remove DC offset
     x = x * np.hanning(len(x))
 
     X = np.fft.fft(x)
 
-    return np.degrees(np.angle(X[1]))
+    fundamental = X[1]
+
+    mag = (2.0 / len(x)) * abs(fundamental)
+
+    return mag / np.sqrt(2)
 
 # =========================
 # LCD FUNCTION (FIXED)
 # =========================
 def lcd_print(l1="", l2="", l3="", l4=""):
-    """FIX: Corrected cursor_pos to use (row, col) format"""
-    def f(x): return str(x)[:16].ljust(16)
-    
-    lcd.cursor_pos = (0, 0)  # Row 0, Col 0 - FIX
-    lcd.write_string(f(l1))
-    
-    lcd.cursor_pos = (1, 0)  # Row 1, Col 0 - FIX
-    lcd.write_string(f(l2))
-    
-    lcd.cursor_pos = (2, 0)  # Row 2, Col 0 - FIX
-    lcd.write_string(f(l3))
-    
-    lcd.cursor_pos = (3, 0)  # Row 3, Col 0 - FIX
-    lcd.write_string(f(l4))
+    lcd.clear()
+
+    lcd.cursor_pos = (0, 0)
+    lcd.write_string(str(l1)[:16])
+
+    lcd.cursor_pos = (1, 0)
+    lcd.write_string(str(l2)[:16])
+
+    lcd.cursor_pos = (2, 0)
+    lcd.write_string(str(l3)[:16])
+
+    lcd.cursor_pos = (3, 0)
+    lcd.write_string(str(l4)[:16])
 
 # =========================
 # FAULT DIRECTION
