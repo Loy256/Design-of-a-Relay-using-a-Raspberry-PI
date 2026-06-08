@@ -71,7 +71,7 @@ ads = ADS.ADS1115(i2c)
 # =========================
 # ADS1115 ADC
 # =========================
-ads = ADS.ADS1115(i2c)
+#ads = ADS.ADS1115(i2c)
 
 # Gain 1 = ±4.096 V range
 ads.gain = 1
@@ -339,6 +339,7 @@ def trip():
 # =========================
 # MAIN LOOP
 # =========================
+
 def run():
     init_gpio()
     last_update = 0
@@ -346,23 +347,21 @@ def run():
     pre_fault_v_angle = None
     lcd_print("Relay READY", "ADS1115 ACTIVE", "", "")
 
-    
-while True:
-    i, v = sample_cycle()
+    while True:
+        i, v = sample_cycle()
 
-    print(
-        f"RAW_CURRENT={CH_CURRENT.voltage:.4f}V "
-        f"RAW_VOLTAGE={CH_VOLTAGE.voltage:.4f}V"
-    )
+        print(
+            f"RAW_CURRENT={CH_CURRENT.voltage:.4f}V "
+            f"RAW_VOLTAGE={CH_VOLTAGE.voltage:.4f}V"
+        )
 
-    i_rms = fft_rms(i)
-    v_rms = fft_rms(v)
+        i_rms = fft_rms(i)
+        v_rms = fft_rms(v)
 
-    fault = i_rms > SETTING_CURRENT_RMS
-        
+        fault = i_rms > SETTING_CURRENT_RMS
+
         if time.time() - last_update > LCD_RATE:
             if fault:
-                # FIX: Show all 4 lines with more info
                 if RELAY_MODE == "INSTANTANEOUS":
                     lcd_print(
                         "FAULT DETECTED",
@@ -385,29 +384,25 @@ while True:
                     ""
                 )
             last_update = time.time()
-        
+
         if fault:
-            # FIX: Implement IDMT mode properly
             if RELAY_MODE == "INSTANTANEOUS":
                 if is_forward(i, v, pre_fault_v_angle):
                     lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
                     trip()
                     time.sleep(1)
             else:  # IDMT mode
-                if disc.advance(i_rms):  # Disc reached 100%
+                if disc.advance(i_rms):
                     if is_forward(i, v, pre_fault_v_angle):
                         lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
                         trip()
                         disc.reset()
                         time.sleep(1)
                     else:
-                        # FIX: Reset disc on reverse fault
                         disc.reset()
         else:
-            # Below pickup: store pre-fault angle and reset disc
             pre_fault_v_angle = fft_phase(v)
             disc.reset()
-
 # =========================
 # ENTRY
 # =========================
