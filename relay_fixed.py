@@ -352,8 +352,14 @@ def run():
     
     while True:
         i, v = sample_cycle()
-        i_rms = fft_rms(i)
-        v_rms = fft_rms(v)
+
+print(
+    f"RAW_CURRENT={CH_CURRENT.voltage:.4f}V "
+    f"RAW_VOLTAGE={CH_VOLTAGE.voltage:.4f}V"
+)
+
+i_rms = fft_rms(i)
+v_rms = fft_rms(v)
         fault = i_rms > SETTING_CURRENT_RMS
         
         if time.time() - last_update > LCD_RATE:
