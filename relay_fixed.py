@@ -271,27 +271,18 @@ def lcd_print(l1="", l2="", l3="", l4=""):
 # =========================
 # FAULT DIRECTION
 # =========================
-def is_forward(i, v, pre_fault_v_angle=None):
-    """Determine if fault is forward direction"""
-    v_rms = compute_rms(v)      # <-- must be indented
-    # ... rest of the function
-    # FIX: Handle voltage collapse
-    # If V is nearly zero, use the memorized angle from the last healthy cycle
-    if v_rms < 0.05 and pre_fault_v_angle is not None:
-        v_phase = pre_fault_v_angle
-    else:
-        v_phase = fft_phase(v)
-    
-    i_phase = fft_phase(i)
-    
-    # Phase difference (i_phase - v_phase)
-    phase_diff = (i_phase - v_phase + 180) % 360 - 180
-    
-    # Adjust by Relay Characteristic Angle (RCA)
-    adjusted = (phase_diff - RELAY_CHAR_ANGLE + 180) % 360 - 180
-    
-    # Check if within the forward zone (e.g., +/- 90 degrees)
-    return abs(adjusted) <= FORWARD_HALF_ANGLE
+def compute_rms_current(x):
+    """For AC current: remove DC offset then RMS"""
+    if len(x) == 0:
+        return 0.0
+    x = x - np.mean(x)
+    return float(np.sqrt(np.mean(x**2)))
+
+def compute_rms_voltage(x):
+    """For voltage: true RMS including any DC component"""
+    if len(x) == 0:
+        return 0.0
+    return float(np.sqrt(np.mean(x**2)))
 
 # =========================
 # TRIP
@@ -319,8 +310,8 @@ def run():
     while True:
         i, v = sample_cycle()
 
-        i_rms = compute_rms(i)      # <-- 8 spaces (one indent from while)
-        v_rms = compute_rms(v)      # <-- same indent
+        i_rms = compute_rms_current(i)   # Fixed: now inside while
+        v_rms = compute_rms_voltage(v)   # Fixed: now inside while
 
         fault = i_rms > SETTING_CURRENT_RMS
 
@@ -329,23 +320,23 @@ def run():
                 if RELAY_MODE == "INSTANTANEOUS":
                     lcd_print(
                         "FAULT DETECTED",
-                        f"I={i_rms:.2f}A V={v_rms:.1f}V",
-                        f"Mode={RELAY_MODE}",
+                        f"I={i_rms:.2f}A",
+                        f"V={v_rms:.1f}V",
                         "Checking dir..."
                     )
                 else:  # IDMT
                     lcd_print(
                         f"IDMT {disc.position:.0f}%",
-                        f"I={i_rms:.2f}A V={v_rms:.1f}V",
-                        f"t={disc.idmt_trip_time(i_rms):.2f}s",
-                        "Accumulating..."
+                        f"I={i_rms:.2f}A",
+                        f"V={v_rms:.1f}V",
+                        f"t={disc.idmt_trip_time(i_rms):.2f}s"
                     )
             else:
                 lcd_print(
                     "NORMAL",
-                    f"I={i_rms:.2f}A V={v_rms:.1f}V",
-                    "Monitoring",
-                    ""
+                    f"I={i_rms:.2f}A",
+                    f"V={v_rms:.1f}V",
+                    "Monitoring"
                 )
             last_update = time.time()
 
@@ -355,7 +346,7 @@ def run():
                     lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
                     trip()
                     time.sleep(1)
-            else:  # IDMT mode
+            else:  # IDMT
                 if disc.advance(i_rms):
                     if is_forward(i, v, pre_fault_v_angle):
                         lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
