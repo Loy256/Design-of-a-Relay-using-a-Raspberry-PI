@@ -39,7 +39,7 @@ def init_gpio():
             os.system("gpio -g mode 11 out")
             time.sleep(0.5)
             TRIP_PIN = OutputDevice(11, active_high=True, initial_value=False)
-            print("✓ GPIO17 reset and initialized successfully")
+            print("✓ GPIO11 reset and initialized successfully")
             return True
         except Exception as e2:
             print(f"✗ GPIO11 initialization still failed: {e2}")
