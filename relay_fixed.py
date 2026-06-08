@@ -77,7 +77,7 @@ ads = ADS.ADS1115(i2c)
 ads.gain = 1
 
 # More stable than 860 SPS
-ads.data_rate = 475
+ads.data_rate = 860
 
 CH_CURRENT = AnalogIn(ads, 0)
 CH_VOLTAGE = AnalogIn(ads, 1)
@@ -150,7 +150,7 @@ if lcd is None:
 # CONFIGURATION
 # =========================
 SYSTEM_FREQUENCY = 50
-SAMPLES_PER_CYCLE = 32         # FIX: increased from 10 for better FFT
+SAMPLES_PER_CYCLE = 8         # FIX: increased from 10 for better FFT
 SETTING_CURRENT_RMS = 1.0
 TMS = 0.3
 RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
@@ -352,6 +352,12 @@ def run():
     
     while True:
         i, v = sample_cycle()
+        print(
+    f"Current: min={np.min(i):.3f} max={np.max(i):.3f}"
+)
+print(
+    f"Voltage: min={np.min(v):.3f} max={np.max(v):.3f}"
+)
         i_rms = fft_rms(i)
         v_rms = fft_rms(v)
         fault = i_rms > SETTING_CURRENT_RMS
