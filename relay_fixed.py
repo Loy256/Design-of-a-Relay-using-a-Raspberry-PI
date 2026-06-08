@@ -273,8 +273,8 @@ def lcd_print(l1="", l2="", l3="", l4=""):
 # =========================
 def is_forward(i, v, pre_fault_v_angle=None):
     """Determine if fault is forward direction"""
-    v_rms = compute_rms(v)    
-    
+    v_rms = compute_rms(v)      # <-- must be indented
+    # ... rest of the function
     # FIX: Handle voltage collapse
     # If V is nearly zero, use the memorized angle from the last healthy cycle
     if v_rms < 0.05 and pre_fault_v_angle is not None:
@@ -316,10 +316,11 @@ def run():
     pre_fault_v_angle = None
     lcd_print("Relay READY", "ADS1115 ACTIVE", "", "")
 
-while True:
+    while True:
         i, v = sample_cycle()
-        i_rms = compute_rms(i)  # <--- MUST BE INDENTED
-        v_rms = compute_rms(v)  # <--- MUST BE INDENTED
+
+        i_rms = compute_rms(i)      # <-- 8 spaces (one indent from while)
+        v_rms = compute_rms(v)      # <-- same indent
 
         fault = i_rms > SETTING_CURRENT_RMS
 
