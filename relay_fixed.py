@@ -352,12 +352,6 @@ def run():
     
     while True:
         i, v = sample_cycle()
-        print(
-    f"Current: min={np.min(i):.3f} max={np.max(i):.3f}"
-)
-print(
-    f"Voltage: min={np.min(v):.3f} max={np.max(v):.3f}"
-)
         i_rms = fft_rms(i)
         v_rms = fft_rms(v)
         fault = i_rms > SETTING_CURRENT_RMS
