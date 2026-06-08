@@ -339,16 +339,13 @@ def trip():
 # =========================
 # MAIN LOOP
 # =========================
-def run():
-    # Initialize GPIO
-    print("\nInitializing GPIO for relay trip control...")
+ef run():
     init_gpio()
-    
     last_update = 0
     LCD_RATE = 0.2
-    pre_fault_v_angle = None  # FIX: store reference voltage angle
-    
+    pre_fault_v_angle = None
     lcd_print("Relay READY", "ADS1115 ACTIVE", "", "")
+
     
 while True:
     i, v = sample_cycle()
