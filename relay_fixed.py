@@ -79,8 +79,8 @@ ads.gain = 1
 # More stable than 860 SPS
 ads.data_rate = 860
 
-CH_CURRENT = AnalogIn(ads, ADS.A0)
-CH_VOLTAGE = AnalogIn(ads, ADS.A1)
+CH_CURRENT = AnalogIn(ads, 0)
+CH_VOLTAGE = AnalogIn(ads, 1)
 
 # =========================
 # I2C DEVICE SCANNING
