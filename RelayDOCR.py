@@ -97,8 +97,8 @@ ads.data_rate = 475    # SPS — stable without being too slow
 
 # FIX 5: A0 = voltage channel (VT), A1 = current channel (CT)
 # Must match your schematic: VT divider → A0, CT divider → A1
-CH_VOLTAGE = AnalogIn(ads, ADS.0)   # VT signal → A0
-CH_CURRENT = AnalogIn(ads, ADS.1)   # CT signal → A1
+CH_VOLTAGE = AnalogIn(ads, ADS.A0)
+CH_CURRENT = AnalogIn(ads, ADS.A1)
 
 print(f"✓ ADS1115 initialised  gain={ads.gain} (±2.048 V)  rate={ads.data_rate} SPS")
 
