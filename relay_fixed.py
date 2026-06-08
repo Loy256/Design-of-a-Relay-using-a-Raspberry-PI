@@ -79,8 +79,8 @@ ads.gain = 1
 # More stable than 860 SPS
 ads.data_rate = 860
 
-CH_CURRENT = AnalogIn(ads, 0)
-CH_VOLTAGE = AnalogIn(ads, 1)
+CH_CURRENT = AnalogIn(ads, ADS.A0)
+CH_VOLTAGE = AnalogIn(ads, ADS.A1)
 
 # =========================
 # I2C DEVICE SCANNING
@@ -350,17 +350,18 @@ def run():
     
     lcd_print("Relay READY", "ADS1115 ACTIVE", "", "")
     
-    while True:
-        i, v = sample_cycle()
+while True:
+    i, v = sample_cycle()
 
-print(
-    f"RAW_CURRENT={CH_CURRENT.voltage:.4f}V "
-    f"RAW_VOLTAGE={CH_VOLTAGE.voltage:.4f}V"
-)
+    print(
+        f"RAW_CURRENT={CH_CURRENT.voltage:.4f}V "
+        f"RAW_VOLTAGE={CH_VOLTAGE.voltage:.4f}V"
+    )
 
-i_rms = fft_rms(i)
-v_rms = fft_rms(v)
-        fault = i_rms > SETTING_CURRENT_RMS
+    i_rms = fft_rms(i)
+    v_rms = fft_rms(v)
+
+    fault = i_rms > SETTING_CURRENT_RMS
         
         if time.time() - last_update > LCD_RATE:
             if fault:
