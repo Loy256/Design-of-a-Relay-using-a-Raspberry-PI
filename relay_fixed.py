@@ -339,7 +339,7 @@ def trip():
 # =========================
 # MAIN LOOP
 # =========================
-ef run():
+def run():
     init_gpio()
     last_update = 0
     LCD_RATE = 0.2
