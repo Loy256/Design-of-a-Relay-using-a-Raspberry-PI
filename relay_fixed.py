@@ -150,7 +150,7 @@ if lcd is None:
 # CONFIGURATION
 # =========================
 SYSTEM_FREQUENCY = 50
-SAMPLES_PER_CYCLE = 20         # FIX: increased from 10 for better FFT
+SAMPLES_PER_CYCLE = 8         # FIX: increased from 10 for better FFT
 SETTING_CURRENT_RMS = 1.0
 TMS = 0.3
 RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
@@ -194,16 +194,7 @@ disc = VirtualDisc()
 # ADC READING
 # =========================
 def read_voltage(channel):
-    v = channel.voltage
-
-    # Prevent impossible values
-    if v < 0:
-        v = 0
-
-    if v > 4.096:
-        v = 4.096
-
-    return v
+    return channel.voltage
 
 # =========================
 # SAMPLING (FIXED for better timing)
@@ -229,33 +220,17 @@ def sample_cycle():
 # =========================
 # FFT (stable version)
 # =========================
-def fft_rms(x):
+def compute_rms(x):
     if len(x) == 0:
         return 0.0
-
     x = x - np.mean(x)
-
-    if np.max(np.abs(x)) < 0.01:
-        return 0.0
-
-    x = x * np.hanning(len(x))
-
-    X = np.fft.fft(x)
-
-    fundamental = X[1]
-
-    mag = (2.0 / len(x)) * abs(fundamental)
-
-    return mag / np.sqrt(2)
+    return float(np.sqrt(np.mean(x**2)))
 
 
 # =========================
 # FFT PHASE DETECTION
 # =========================
 def fft_phase(x):
-    """
-    Returns phase angle of the fundamental frequency component.
-    """
     if len(x) == 0:
         return 0.0
 
@@ -264,12 +239,9 @@ def fft_phase(x):
     if np.max(np.abs(x)) < 0.01:
         return 0.0
 
-    x = x * np.hanning(len(x))
-
+    # No Hanning window — preserves phase accuracy with few samples
     X = np.fft.fft(x)
-
     fundamental = X[1]
-
     phase = np.angle(fundamental, deg=True)
 
     return phase
@@ -280,32 +252,31 @@ def fft_phase(x):
 # =========================
 def lcd_print(l1="", l2="", l3="", l4=""):
     if lcd is None:
-        # Print to console if LCD not available
         print(f"LCD: {l1} | {l2} | {l3} | {l4}")
         return
-    
-    lcd.clear()
-
-    lcd.cursor_pos = (0, 0)
-    lcd.write_string(str(l1)[:16])
-
-    lcd.cursor_pos = (1, 0)
-    lcd.write_string(str(l2)[:16])
-
-    lcd.cursor_pos = (2, 0)
-    lcd.write_string(str(l3)[:16])
-
-    lcd.cursor_pos = (3, 0)
-    lcd.write_string(str(l4)[:16])
-
+    try:
+        lcd.cursor_pos = (0, 0)
+        lcd.write_string(str(l1).ljust(16)[:16])
+        lcd.cursor_pos = (1, 0)
+        lcd.write_string(str(l2).ljust(16)[:16])
+        lcd.cursor_pos = (2, 0)
+        lcd.write_string(str(l3).ljust(16)[:16])
+        lcd.cursor_pos = (3, 0)
+        lcd.write_string(str(l4).ljust(16)[:16])
+    except Exception as e:
+        print(f"LCD error: {e}")
+# =========================
+# FAULT DIRECTION
+# =========================
 # =========================
 # FAULT DIRECTION
 # =========================
 def is_forward(i, v, pre_fault_v_angle=None):
     """Determine if fault is forward direction"""
-    v_rms = fft_rms(v)
+    v_rms = compute_rms(v)    
     
     # FIX: Handle voltage collapse
+    # If V is nearly zero, use the memorized angle from the last healthy cycle
     if v_rms < 0.05 and pre_fault_v_angle is not None:
         v_phase = pre_fault_v_angle
     else:
@@ -313,16 +284,14 @@ def is_forward(i, v, pre_fault_v_angle=None):
     
     i_phase = fft_phase(i)
     
-    # Phase difference
-    phase_diff = i_phase - v_phase
-    phase_diff = (phase_diff + 180) % 360 - 180
+    # Phase difference (i_phase - v_phase)
+    phase_diff = (i_phase - v_phase + 180) % 360 - 180
     
-    # Adjust by RCA
-    adjusted = phase_diff - RELAY_CHAR_ANGLE
-    adjusted = (adjusted + 180) % 360 - 180
+    # Adjust by Relay Characteristic Angle (RCA)
+    adjusted = (phase_diff - RELAY_CHAR_ANGLE + 180) % 360 - 180
     
-    forward = abs(adjusted) <= FORWARD_HALF_ANGLE
-    return forward
+    # Check if within the forward zone (e.g., +/- 90 degrees)
+    return abs(adjusted) <= FORWARD_HALF_ANGLE
 
 # =========================
 # TRIP
@@ -347,16 +316,10 @@ def run():
     pre_fault_v_angle = None
     lcd_print("Relay READY", "ADS1115 ACTIVE", "", "")
 
-    while True:
+while True:
         i, v = sample_cycle()
-
-      #  print(
-       #     f"RAW_CURRENT={CH_CURRENT.voltage:.4f}V "
-        #    f"RAW_VOLTAGE={CH_VOLTAGE.voltage:.4f}V"
-        #)
-
-        i_rms = fft_rms(i)
-        v_rms = fft_rms(v)
+        i_rms = compute_rms(i)  # <--- MUST BE INDENTED
+        v_rms = compute_rms(v)  # <--- MUST BE INDENTED
 
         fault = i_rms > SETTING_CURRENT_RMS
 
