@@ -350,10 +350,10 @@ def run():
     while True:
         i, v = sample_cycle()
 
-        print(
-            f"RAW_CURRENT={CH_CURRENT.voltage:.4f}V "
-            f"RAW_VOLTAGE={CH_VOLTAGE.voltage:.4f}V"
-        )
+      #  print(
+       #     f"RAW_CURRENT={CH_CURRENT.voltage:.4f}V "
+        #    f"RAW_VOLTAGE={CH_VOLTAGE.voltage:.4f}V"
+        #)
 
         i_rms = fft_rms(i)
         v_rms = fft_rms(v)
