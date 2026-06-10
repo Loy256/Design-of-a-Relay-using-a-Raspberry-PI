@@ -346,15 +346,29 @@ def run():
             f"Vang={v_angle:.1f}°"
         )
 
-       
- 
         fault = i_rms > SETTING_CURRENT_RMS
 
+        # LCD update at reduced rate (every LCD_RATE seconds)
         if time.time() - last_update > LCD_RATE:
+            last_update = time.time()
+            if not fault:
+                lcd_print(
+                    "NORMAL",
+                    f"I={i_rms:.2f}A  V={v_rms:.1f}V",
+                    f"Mode: {RELAY_MODE}",
+                    "Monitoring"
+                )
+            else:
+                lcd_print(
+                    "FAULT DETECTED",
+                    f"I={i_rms:.2f}A",
+                    f"V={v_rms:.1f}V",
+                    "Checking direction..."
+                )
+
+        # Fault handling (runs every cycle, independent of LCD rate)
         if fault:
-
             if RELAY_MODE == "INSTANTANEOUS":
-
                 if is_forward(i, v, pre_fault_v_angle):
                     lcd_print(
                         "TRIP",
@@ -364,35 +378,26 @@ def run():
                     )
                     trip()
                     time.sleep(1)
-
             else:  # IDMT
-
                 if disc.advance(i_rms):
-
                     if is_forward(i, v, pre_fault_v_angle):
-
                         lcd_print(
                             "TRIP",
                             "FORWARD FAULT",
                             "BREAKER OPEN",
                             ""
                         )
-
                         trip()
                         disc.reset()
                         time.sleep(1)
-
                     else:
-
                         lcd_print(
                             "REVERSE FAULT",
                             f"I={i_rms:.2f}A",
                             f"V={v_rms:.1f}V",
                             "NO TRIP"
                         )
-
                         disc.reset()
-
         else:
             pre_fault_v_angle = fft_phase(v)
             disc.reset()
