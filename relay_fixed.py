@@ -324,6 +324,7 @@ def trip():
 # MAIN LOOP
 # =========================
 
+
 def run():
     init_gpio()
     last_update = 0
@@ -336,70 +337,58 @@ def run():
         i_rms = compute_rms_current(i)
         v_rms = compute_rms_voltage(v)
 
+        # Always compute angle difference for direction
         i_angle = fft_phase(i)
         v_angle = fft_phase(v)
+        angle_diff = i_angle - v_angle
+        while angle_diff > 180:
+            angle_diff -= 360
+        while angle_diff < -180:
+            angle_diff += 360
+        is_fwd = abs(angle_diff) <= 90
+        direction = "FWD" if is_fwd else "REV"
 
-        print(
-            f"I={i_rms:.2f} "
-            f"V={v_rms:.2f} "
-            f"Iang={i_angle:.1f}° "
-            f"Vang={v_angle:.1f}°"
-        )
+        print(f"I={i_rms:.2f}A V={v_rms:.2f}V Iang={i_angle:.1f}° Vang={v_angle:.1f}° Diff={angle_diff:.1f}°")
 
         fault = i_rms > SETTING_CURRENT_RMS
 
-        # LCD update at reduced rate (every LCD_RATE seconds)
+        # LCD update – always show I, V, direction, and angle diff
         if time.time() - last_update > LCD_RATE:
             last_update = time.time()
             if not fault:
                 lcd_print(
                     "NORMAL",
-                    f"I={i_rms:.2f}A  V={v_rms:.1f}V",
-                    f"Mode: {RELAY_MODE}",
-                    "Monitoring"
+                    f"I={i_rms:.2f}A {direction}",
+                    f"V={v_rms:.1f}V",
+                    f"Diff={angle_diff:.0f}°"
                 )
             else:
                 lcd_print(
                     "FAULT DETECTED",
-                    f"I={i_rms:.2f}A",
+                    f"I={i_rms:.2f}A {direction}",
                     f"V={v_rms:.1f}V",
-                    "Checking direction..."
+                    f"Diff={angle_diff:.0f}°"
                 )
 
-        # Fault handling (runs every cycle, independent of LCD rate)
+        # Fault handling (uses the same is_fwd)
         if fault:
             if RELAY_MODE == "INSTANTANEOUS":
-                if is_forward(i, v, pre_fault_v_angle):
-                    lcd_print(
-                        "TRIP",
-                        "FORWARD FAULT",
-                        "BREAKER OPEN",
-                        ""
-                    )
+                if is_fwd:
+                    lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
                     trip()
                     time.sleep(1)
             else:  # IDMT
                 if disc.advance(i_rms):
-                    if is_forward(i, v, pre_fault_v_angle):
-                        lcd_print(
-                            "TRIP",
-                            "FORWARD FAULT",
-                            "BREAKER OPEN",
-                            ""
-                        )
+                    if is_fwd:
+                        lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
                         trip()
                         disc.reset()
                         time.sleep(1)
                     else:
-                        lcd_print(
-                            "REVERSE FAULT",
-                            f"I={i_rms:.2f}A",
-                            f"V={v_rms:.1f}V",
-                            "NO TRIP"
-                        )
+                        lcd_print("REVERSE FAULT", f"I={i_rms:.2f}A", f"V={v_rms:.1f}V", "NO TRIP")
                         disc.reset()
         else:
-            pre_fault_v_angle = fft_phase(v)
+            pre_fault_v_angle = v_angle
             disc.reset()
 # =========================
 # ENTRY
