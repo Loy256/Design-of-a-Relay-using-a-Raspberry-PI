@@ -333,20 +333,21 @@ def run():
 
     while True:
         i, v = sample_cycle()
+        i_rms = compute_rms_current(i)
+        v_rms = compute_rms_voltage(v)
 
-        i_rms = compute_rms_current(i)   # Fixed: now inside while
-        v_rms = compute_rms_voltage(v)   # Fixed: now inside while
-        
         i_angle = fft_phase(i)
-v_angle = fft_phase(v)
+        v_angle = fft_phase(v)
 
-print(
-    f"I={i_rms:.2f} "
-    f"V={v_rms:.2f} "
-    f"Iang={i_angle:.1f}° "
-    f"Vang={v_angle:.1f}°"
-)
+        print(
+            f"I={i_rms:.2f} "
+            f"V={v_rms:.2f} "
+            f"Iang={i_angle:.1f}° "
+            f"Vang={v_angle:.1f}°"
+        )
 
+       
+ 
         fault = i_rms > SETTING_CURRENT_RMS
 
         if time.time() - last_update > LCD_RATE:
