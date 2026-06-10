@@ -26,23 +26,23 @@ def init_gpio():
     """Initialize GPIO with error handling"""
     global TRIP_PIN
     try:
-        TRIP_PIN = OutputDevice(11, active_high=True, initial_value=False)
-        print("✓ GPIO11 initialized successfully")
+        TRIP_PIN = OutputDevice(17, active_high=True, initial_value=False)
+        print("✓ GPIO17 initialized successfully")
         return True
     except Exception as e:
-        print(f"⚠ Warning: GPIO11 initialization failed: {e}")
+        print(f"⚠ Warning: GPIO17 initialization failed: {e}")
         print("  Attempting to reset GPIO...")
         try:
             # Try to reset the GPIO
             import os
-            os.system("gpio -g mode 11 in")
-            os.system("gpio -g mode 11 out")
+            os.system("gpio -g mode 17 in")
+            os.system("gpio -g mode 17 out")
             time.sleep(0.5)
-            TRIP_PIN = OutputDevice(11, active_high=True, initial_value=False)
-            print("✓ GPIO11 reset and initialized successfully")
+            TRIP_PIN = OutputDevice(17, active_high=True, initial_value=False)
+            print("✓ GPIO17 reset and initialized successfully")
             return True
         except Exception as e2:
-            print(f"✗ GPIO11 initialization still failed: {e2}")
+            print(f"✗ GPIO17 initialization still failed: {e2}")
             print("  Relay will work but trip command will be disabled")
             return False
 
