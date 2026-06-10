@@ -77,7 +77,7 @@ ads = ADS.ADS1115(i2c)
 ads.gain = 1
 
 # More stable than 860 SPS
-ads.data_rate = 475
+ads.data_rate = 860
 
 CH_CURRENT = AnalogIn(ads, 0)
 CH_VOLTAGE = AnalogIn(ads, 1)
@@ -150,7 +150,7 @@ if lcd is None:
 # CONFIGURATION
 # =========================
 SYSTEM_FREQUENCY = 50
-SAMPLES_PER_CYCLE = 8         # FIX: increased from 10 for better FFT
+SAMPLES_PER_CYCLE = 16         # FIX: increased from 10 for better FFT
 SETTING_CURRENT_RMS = 0.2
 TMS = 0.3
 RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
