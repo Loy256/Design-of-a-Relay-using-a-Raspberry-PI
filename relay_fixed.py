@@ -151,7 +151,7 @@ if lcd is None:
 # =========================
 SYSTEM_FREQUENCY = 50
 SAMPLES_PER_CYCLE = 8         # FIX: increased from 10 for better FFT
-SETTING_CURRENT_RMS = 1.0
+SETTING_CURRENT_RMS = 0.2
 TMS = 0.3
 RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
 RELAY_MODE = "IDMT"
@@ -164,7 +164,7 @@ class VirtualDisc:
     """Virtual disc for IDMT timing"""
     def __init__(self):
         self.position = 0.0
-        self.HALF_CYCLE_DURATION = 1.0 / (2 * SYSTEM_FREQUENCY)
+        self.HALF_CYCLE_DURATION = 0.2 / (2 * SYSTEM_FREQUENCY)
     
     def reset(self):
         self.position = 0.0
