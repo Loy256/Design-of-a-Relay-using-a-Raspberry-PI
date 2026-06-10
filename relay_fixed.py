@@ -77,7 +77,7 @@ ads = ADS.ADS1115(i2c)
 ads.gain = 1
 
 # More stable than 860 SPS
-ads.data_rate = 860
+ads.data_rate = 475
 
 CH_CURRENT = AnalogIn(ads, 0)
 CH_VOLTAGE = AnalogIn(ads, 1)
