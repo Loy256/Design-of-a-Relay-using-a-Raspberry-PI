@@ -381,21 +381,29 @@ def run():
                     lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
                     trip()
                     time.sleep(1)
-            else:  # IDMT
+
+                    else:  # IDMT
                 if disc.advance(i_rms):
                     if is_forward(i, v, pre_fault_v_angle):
-                        lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
+                        lcd_print(
+                            "TRIP",
+                            "FORWARD FAULT",
+                            "BREAKER OPEN",
+                            ""
+                        )
                         trip()
                         disc.reset()
                         time.sleep(1)
+
                     else:
-    lcd_print(
-        "REVERSE FAULT",
-        f"I={i_rms:.2f}A",
-        f"V={v_rms:.1f}V",
-        "NO TRIP"
-    )
-    disc.reset()
+                        lcd_print(
+                            "REVERSE FAULT",
+                            f"I={i_rms:.2f}A",
+                            f"V={v_rms:.1f}V",
+                            "NO TRIP"
+                        )
+                        disc.reset()
+            
         else:
             pre_fault_v_angle = fft_phase(v)
             disc.reset()
