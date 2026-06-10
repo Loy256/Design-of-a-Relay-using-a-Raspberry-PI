@@ -351,59 +351,48 @@ def run():
         fault = i_rms > SETTING_CURRENT_RMS
 
         if time.time() - last_update > LCD_RATE:
-            if fault:
-                if RELAY_MODE == "INSTANTANEOUS":
-                    lcd_print(
-                        "FAULT DETECTED",
-                        f"I={i_rms:.2f}A",
-                        f"V={v_rms:.1f}V",
-                        "Checking dir..."
-                    )
-                else:  # IDMT
-                    lcd_print(
-                        f"IDMT {disc.position:.0f}%",
-                        f"I={i_rms:.2f}A",
-                        f"V={v_rms:.1f}V",
-                        f"t={disc.idmt_trip_time(i_rms):.2f}s"
-                    )
-            else:
-                lcd_print(
-                    "NORMAL",
-                    f"I={i_rms:.2f}A",
-                    f"V={v_rms:.1f}V",
-                    "Monitoring"
-                )
-            last_update = time.time()
-
         if fault:
+
             if RELAY_MODE == "INSTANTANEOUS":
+
                 if is_forward(i, v, pre_fault_v_angle):
-                    lcd_print("TRIP", "FORWARD FAULT", "BREAKER OPEN", "")
+                    lcd_print(
+                        "TRIP",
+                        "FORWARD FAULT",
+                        "BREAKER OPEN",
+                        ""
+                    )
                     trip()
                     time.sleep(1)
 
-                    else:  # IDMT
+            else:  # IDMT
+
                 if disc.advance(i_rms):
+
                     if is_forward(i, v, pre_fault_v_angle):
+
                         lcd_print(
                             "TRIP",
                             "FORWARD FAULT",
                             "BREAKER OPEN",
                             ""
                         )
+
                         trip()
                         disc.reset()
                         time.sleep(1)
 
                     else:
+
                         lcd_print(
                             "REVERSE FAULT",
                             f"I={i_rms:.2f}A",
                             f"V={v_rms:.1f}V",
                             "NO TRIP"
                         )
+
                         disc.reset()
-            
+
         else:
             pre_fault_v_angle = fft_phase(v)
             disc.reset()
