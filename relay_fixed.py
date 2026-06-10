@@ -285,6 +285,30 @@ def compute_rms_voltage(x):
     return float(np.sqrt(np.mean(x**2)))
 
 # =========================
+# DIRECTIONAL ELEMENT
+# =========================
+def is_forward(i_samples, v_samples, pre_fault_v_angle=None):
+
+    i_angle = fft_phase(i_samples)
+    v_angle = fft_phase(v_samples)
+
+    angle_diff = i_angle - v_angle
+
+    while angle_diff > 180:
+        angle_diff -= 360
+
+    while angle_diff < -180:
+        angle_diff += 360
+
+    print(
+        f"V={v_angle:.1f}° "
+        f"I={i_angle:.1f}° "
+        f"Diff={angle_diff:.1f}°"
+    )
+
+    return abs(angle_diff) <= 90
+
+# =========================
 # TRIP
 # =========================
 def trip():
@@ -312,6 +336,16 @@ def run():
 
         i_rms = compute_rms_current(i)   # Fixed: now inside while
         v_rms = compute_rms_voltage(v)   # Fixed: now inside while
+        
+        i_angle = fft_phase(i)
+v_angle = fft_phase(v)
+
+print(
+    f"I={i_rms:.2f} "
+    f"V={v_rms:.2f} "
+    f"Iang={i_angle:.1f}° "
+    f"Vang={v_angle:.1f}°"
+)
 
         fault = i_rms > SETTING_CURRENT_RMS
 
@@ -354,7 +388,13 @@ def run():
                         disc.reset()
                         time.sleep(1)
                     else:
-                        disc.reset()
+    lcd_print(
+        "REVERSE FAULT",
+        f"I={i_rms:.2f}A",
+        f"V={v_rms:.1f}V",
+        "NO TRIP"
+    )
+    disc.reset()
         else:
             pre_fault_v_angle = fft_phase(v)
             disc.reset()
