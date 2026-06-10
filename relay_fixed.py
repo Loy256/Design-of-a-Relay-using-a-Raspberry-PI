@@ -150,7 +150,7 @@ if lcd is None:
 # CONFIGURATION
 # =========================
 SYSTEM_FREQUENCY = 50
-SAMPLES_PER_CYCLE = 16         # FIX: increased from 10 for better FFT
+SAMPLES_PER_CYCLE = 64         # FIX: increased from 10 for better FFT
 SETTING_CURRENT_RMS = 0.20
 TMS = 0.3
 RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
