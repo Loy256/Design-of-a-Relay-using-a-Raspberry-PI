@@ -352,7 +352,7 @@ def run():
 
         fault = i_rms > SETTING_CURRENT_RMS
 
-        # LCD update – always show I, V, direction, and angle diff
+        # LCD update – separate displays for forward / reverse scenarios
         if time.time() - last_update > LCD_RATE:
             last_update = time.time()
             if not fault:
@@ -363,12 +363,21 @@ def run():
                     f"Diff={angle_diff:.0f}°"
                 )
             else:
-                lcd_print(
-                    "FAULT DETECTED",
-                    f"I={i_rms:.2f}A {direction}",
-                    f"V={v_rms:.1f}V",
-                    f"Diff={angle_diff:.0f}°"
-                )
+                # Show direction-specific header
+                if is_fwd:
+                    lcd_print(
+                        "FORWARD FAULT",
+                        f"I={i_rms:.2f}A",
+                        f"V={v_rms:.1f}V",
+                        f"Angle={angle_diff:.0f}°"
+                    )
+                else:
+                    lcd_print(
+                        "REVERSE FAULT",
+                        f"I={i_rms:.2f}A",
+                        f"V={v_rms:.1f}V",
+                        f"Angle={angle_diff:.0f}°"
+                    )
 
         # Fault handling (uses the same is_fwd)
         if fault:
@@ -385,7 +394,7 @@ def run():
                         disc.reset()
                         time.sleep(1)
                     else:
-                        lcd_print("REVERSE FAULT", f"I={i_rms:.2f}A", f"V={v_rms:.1f}V", "NO TRIP")
+                        lcd_print("REVERSE FAULT - BLOCK", f"I={i_rms:.2f}A", f"V={v_rms:.1f}V", "NO TRIP")
                         disc.reset()
         else:
             pre_fault_v_angle = v_angle
