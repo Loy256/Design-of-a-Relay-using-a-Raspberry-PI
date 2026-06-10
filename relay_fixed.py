@@ -164,7 +164,7 @@ class VirtualDisc:
     """Virtual disc for IDMT timing"""
     def __init__(self):
         self.position = 0.0
-        self.HALF_CYCLE_DURATION = 0.2 / (2 * SYSTEM_FREQUENCY)
+        self.HALF_CYCLE_DURATION = 1.0 / (2 * SYSTEM_FREQUENCY)
     
     def reset(self):
         self.position = 0.0
