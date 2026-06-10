@@ -151,7 +151,7 @@ if lcd is None:
 # =========================
 SYSTEM_FREQUENCY = 50
 SAMPLES_PER_CYCLE = 16         # FIX: increased from 10 for better FFT
-SETTING_CURRENT_RMS = 0.2
+SETTING_CURRENT_RMS = 1.0
 TMS = 0.3
 RELAY_CHAR_ANGLE = 0           # FIX: added missing parameter
 RELAY_MODE = "IDMT"
